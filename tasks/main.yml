@@ -1,0 +1,30 @@
+---
+- name: Create etcd group
+  ansible.builtin.group:
+    name: "{{ etcd_group }}"
+
+- name: Create etcd user
+  ansible.builtin.user:
+    name: "{{ etcd_user }}"
+    groups: "{{ etcd_group }}"
+    uid: "{{ etcd_user_id }}"
+    shell: /usr/bin/nologin
+    create_home: false
+
+- name: Create etcd directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ etcd_user }}"
+    group: "{{ etcd_group }}"
+    mode: "700"
+  loop:
+    - "{{ etcd_data_dir }}"
+    - "{{ etcd_certs_dir }}"
+    - "{{ etcd_cacert_dir }}"
+    - "{{ etcd_peer_cert_dir }}"
+    - "{{ etcd_server_cert_dir }}"
+
+- name: Generate certs
+  ansible.builtin.include_tasks:
+    file: certs.yml

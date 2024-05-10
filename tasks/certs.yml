@@ -1,0 +1,72 @@
+---
+- name: Ensure python-pip is installed
+  ansible.builtin.yum:
+    name:
+      - python-pip
+    state: present
+
+- name: Install required python module
+  ansible.builtin.pip:
+    name:
+      - cryptography
+    state: present
+
+- name: Generate self-signed CA certificate
+  delegate_to: "{{ groups['etcd'][0] }}"
+  block:
+    - name: Create private key
+      community.crypto.openssl_privatekey:
+        path: "{{ etcd_cacert_dir }}/ca-cert.key"
+        # passphrase: "{{ etcd_cacert_passphrase }}"
+
+    - name: Create CSR for CA certificate
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
+        common_name: Etcd CA
+        use_common_name_for_san: true
+        basic_constraints:
+          - 'CA:TRUE'
+        basic_constraints_critical: true
+        key_usage:
+          - keyCertSign
+        key_usage_critical: true
+      register: ca_csr
+
+    - name: Create self-signed CA certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ etcd_cacert_dir }}/ca-cert.pem"
+        csr_content: "{{ ca_csr.csr }}"
+        privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
+        provider: selfsigned
+
+- name: Genereate etcd server cert on each node
+  throttle: 1
+  block:
+    - name: Generate private key for CSR
+      community.crypto.openssl_privatekey:
+        path: "{{ etcd_server_cert_dir }}/cert.key"
+
+    - name: Generate CSR for etcd server cert
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ etcd_server_cert_dir }}/cert.key"
+        common_name: Etcd server
+      register: csr
+
+    - name: Sign certificate with CA
+      community.crypto.x509_certificate_pipe:
+        csr_content: "{{ csr.csr }}"
+        provider: ownca
+        ownca_path: "{{ etcd_cacert_dir }}/ca-cert.pem"
+        ownca_privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
+        ownca_not_after: +365d
+        ownca_not_before: "-1d"
+      delegate_to: "{{ groups['etcd'][0] }}"
+      register: certificate
+
+    - name: Write certificate file on server
+      ansible.builtin.copy:
+        dest: "{{ etcd_server_cert_dir }}/cert.pem"
+        content: "{{ certificate.certificate }}"
+        owner: "{{ etcd_user }}"
+        group: "{{ etcd_group }}"
+        mode: '0400'
