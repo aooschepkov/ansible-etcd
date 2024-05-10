@@ -23,7 +23,7 @@
       community.crypto.openssl_csr_pipe:
         privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
         common_name: Etcd CA
-        use_common_name_for_san: true
+        use_common_name_for_san: false
         basic_constraints:
           - 'CA:TRUE'
         basic_constraints_critical: true
@@ -63,6 +63,8 @@
     - name: Generate CSR for etcd peer cert
       community.crypto.openssl_csr_pipe:
         privatekey_path: "{{ etcd_peer_cert_dir }}/cert.key"
+        subject_alt_name:
+          - "IP:{{ ansible_default_ipv4.address }}"
         common_name: Etcd peer
       register: csr
 
@@ -98,6 +100,8 @@
     - name: Generate CSR for etcd client cert
       community.crypto.openssl_csr_pipe:
         privatekey_path: "{{ etcd_client_cert_dir }}/cert.key"
+        subject_alt_name:
+          - "IP:{{ ansible_default_ipv4.address }}"
         common_name: Etcd client
       register: csr
 
