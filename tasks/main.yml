@@ -19,12 +19,16 @@
     group: "{{ etcd_group }}"
     mode: "700"
   loop:
-    - "{{ etcd_data_dir }}"
     - "{{ etcd_certs_dir }}"
     - "{{ etcd_cacert_dir }}"
     - "{{ etcd_peer_cert_dir }}"
-    - "{{ etcd_server_cert_dir }}"
+    - "{{ etcd_client_cert_dir }}"
 
 - name: Generate certs
   ansible.builtin.include_tasks:
     file: certs.yml
+
+- name: Configure etcd cluster
+  ansible.builtin.include_tasks:
+    file: etcd-cluster.yml
+  tags: cluster

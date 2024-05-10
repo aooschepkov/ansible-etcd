@@ -1,17 +1,21 @@
 ---
-etcd_deployment_type: docker # traditional - TODO
+# etcd_deployment_type: docker # traditional
 
-etcd_deployment_mode: clustered # standalone
+# etcd_deployment_mode: clustered # standalone
 
 etcd_user: etcd
 etcd_group: etcd
-etcd_user_id: 2801
+etcd_user_id: 2379
 
+etcd_docker_image: bitnami/etcd
 etcd_version: latest
 
 etcd_dir: "/var/lib/etcd"
-etcd_data_dir: "{{ etcd_dir }}/data"
 etcd_certs_dir: "{{ etcd_dir }}/certs"
 etcd_cacert_dir: "{{ etcd_certs_dir }}/CA"
 etcd_peer_cert_dir: "{{ etcd_certs_dir }}/peer"
-etcd_server_cert_dir: "{{ etcd_certs_dir }}/server"
+etcd_client_cert_dir: "{{ etcd_certs_dir }}/client"
+
+etcd_service_name: etcd
+etcd_client_port: 2379
+etcd_peer_port: 2380

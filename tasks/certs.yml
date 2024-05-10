@@ -38,18 +38,32 @@
         csr_content: "{{ ca_csr.csr }}"
         privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
         provider: selfsigned
+        return_content: true
+      register: cacert
 
-- name: Genereate etcd server cert on each node
+- name: Write certificate file on host
+  ansible.builtin.copy:
+    dest: "{{ etcd_cacert_dir }}/ca-cert.pem"
+    content: "{{ cacert.certificate }}"
+    owner: "{{ etcd_user }}"
+    group: "{{ etcd_group }}"
+    mode: '0400'
+  when: inventory_hostname != groups['etcd'][0]
+
+- name: Generate etcd peer cert on each node
   throttle: 1
   block:
     - name: Generate private key for CSR
       community.crypto.openssl_privatekey:
-        path: "{{ etcd_server_cert_dir }}/cert.key"
+        path: "{{ etcd_peer_cert_dir }}/cert.key"
+        owner: "{{ etcd_user }}"
+        group: "{{ etcd_group }}"
+        mode: '0400'
 
-    - name: Generate CSR for etcd server cert
+    - name: Generate CSR for etcd peer cert
       community.crypto.openssl_csr_pipe:
-        privatekey_path: "{{ etcd_server_cert_dir }}/cert.key"
-        common_name: Etcd server
+        privatekey_path: "{{ etcd_peer_cert_dir }}/cert.key"
+        common_name: Etcd peer
       register: csr
 
     - name: Sign certificate with CA
@@ -63,9 +77,44 @@
       delegate_to: "{{ groups['etcd'][0] }}"
       register: certificate
 
-    - name: Write certificate file on server
+    - name: Write certificate file on host
       ansible.builtin.copy:
-        dest: "{{ etcd_server_cert_dir }}/cert.pem"
+        dest: "{{ etcd_peer_cert_dir }}/cert.pem"
+        content: "{{ certificate.certificate }}"
+        owner: "{{ etcd_user }}"
+        group: "{{ etcd_group }}"
+        mode: '0400'
+
+- name: Generate etcd client cert on each node
+  throttle: 1
+  block:
+    - name: Generate private key for CSR
+      community.crypto.openssl_privatekey:
+        path: "{{ etcd_client_cert_dir }}/cert.key"
+        owner: "{{ etcd_user }}"
+        group: "{{ etcd_group }}"
+        mode: '0400'
+
+    - name: Generate CSR for etcd client cert
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ etcd_client_cert_dir }}/cert.key"
+        common_name: Etcd client
+      register: csr
+
+    - name: Sign certificate with CA
+      community.crypto.x509_certificate_pipe:
+        csr_content: "{{ csr.csr }}"
+        provider: ownca
+        ownca_path: "{{ etcd_cacert_dir }}/ca-cert.pem"
+        ownca_privatekey_path: "{{ etcd_cacert_dir }}/ca-cert.key"
+        ownca_not_after: +365d
+        ownca_not_before: "-1d"
+      delegate_to: "{{ groups['etcd'][0] }}"
+      register: certificate
+
+    - name: Write certificate file on host
+      ansible.builtin.copy:
+        dest: "{{ etcd_client_cert_dir }}/cert.pem"
         content: "{{ certificate.certificate }}"
         owner: "{{ etcd_user }}"
         group: "{{ etcd_group }}"

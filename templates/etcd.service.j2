@@ -1,0 +1,36 @@
+[Unit]
+Description=Etcd
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStartPre=-/usr/bin/docker rm --force {{ etcd_service_name }}
+ExecStart=/usr/bin/docker run --rm \
+    --name {{ etcd_service_name }} \
+    -u {{ etcd_user_id }} \
+    -p {{ etcd_client_port }}:2379 \
+    -p {{ etcd_peer_port }}:2380 \
+    -v {{ etcd_certs_dir }}:/opt/bitnami/etcd/certs \
+    -e ETCD_NAME={{ inventory_hostname }} \
+    -e ALLOW_NONE_AUTHENTICATION=yes \
+    -e ETCD_INITIAL_CLUSTER="{{ etcd_initial_cluster }}" \
+    -e ETCD_INITIAL_CLUSTER_STATE=new \
+    -e ETCD_LISTEN_PEER_URLS=https://0.0.0.0:2380 \
+    -e ETCD_INITIAL_ADVERTISE_PEER_URLS=https://{{ ansible_default_ipv4.address }}:{{ etcd_peer_port }} \
+    -e ETCD_LISTEN_CLIENT_URLS=https://0.0.0.0:2379 \
+    -e ETCD_ADVERTISE_CLIENT_URLS=https://{{ ansible_default_ipv4.address }}:{{ etcd_client_port }} \
+    -e ETCD_PEER_TRUSTED_CA_FILE=/opt/bitnami/etcd/certs/CA/ca-cert.pem \
+    -e ETCD_PEER_CERT_ALLOWED_CN="Etcd peer" \
+    -e ETCD_PEER_CERT_FILE=/opt/bitnami/etcd/certs/peer/cert.pem \
+    -e ETCD_PEER_KEY_FILE=/opt/bitnami/etcd/certs/peer/cert.key \
+    -e ETCD_PEER_CLIENT_CERT_AUTH=true \
+    -e ETCD_CERT_FILE=/opt/bitnami/etcd/certs/client/cert.pem \
+    -e ETCD_KEY_FILE=/opt/bitnami/etcd/certs/client/cert.key \
+    -e ETCD_TRUSTED_CA_FILE=/opt/bitnami/etcd/certs/CA/ca-cert.pem \
+    {{ etcd_docker_image }}:{{ etcd_version }}
+
+ExecStop=/usr/bin/docker stop -t 10 {{ etcd_service_name }}
+
+[Install]
+WantedBy=multu-user.target
