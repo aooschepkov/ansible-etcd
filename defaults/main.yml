@@ -1,8 +1,4 @@
 ---
-# etcd_deployment_type: docker # traditional
-
-# etcd_deployment_mode: clustered # standalone
-
 etcd_user: etcd
 etcd_group: etcd
 etcd_user_id: 2379
